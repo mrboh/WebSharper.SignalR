@@ -6,32 +6,6 @@ open WebSharper.InterfaceGenerator
 
 module Definition =
 
-    let I1 =
-        Interface "I1"
-        |+> [
-                "test1" => T<string> ^-> T<string>
-            ]
-
-    let I2 =
-        Generic -- fun t1 t2 ->
-            Interface "I2"
-            |+> [
-                    Generic - fun m1 -> "foo" => m1 * t1 ^-> t2
-                ]
-
-    let C1 =
-        Class "C1"
-        |+> Instance [
-                "foo" =@ T<int>
-            ]
-        |+> Static [
-                Constructor (T<unit> + T<int>)
-                "mem"   => (T<unit> + T<int> ^-> T<unit>)
-                "test2" => (TSelf -* T<int> ^-> T<unit>) * T<string> ^-> T<string>
-                "radius2" =? T<float>
-                |> WithSourceName "R2"
-            ]
-
     let LogLevel = 
         Pattern.EnumStrings "LogLevel"
             [ "Trace"; "Debug"; "Information"; "Warning"; "Error"; "Critical"; "None" ]
@@ -164,13 +138,59 @@ module Definition =
             "accessTokenFactory" => T<unit> ^-> T<string> + T<Promise<string>>
         ]
 
-    let HubConnectionBuilder =
-        Class "HubConnectionBuilder"
+    let IStreamSubscriber =
+        Generic - fun t ->
+            Interface "IStreamSubscriber"
+            |+> [
+                "closed"        =@ T<bool>
+            ]
+            |+> [
+                "complete"      => T<unit> ^-> T<unit>
+                "error"         => T<obj>?err ^-> T<obj>
+                "next"          => t?value ^-> T<unit>
+            ]
+
+    let ISubscription =
+        Generic - fun t ->
+            Interface "ISubscription"
+            |+> [
+                "dispose" => T<unit> ^-> T<unit>
+            ]
+
+    let IStreamResult  =
+        Generic - fun t ->
+            Interface "IStreamResult"
+            |+> [
+                "subscribe" => IStreamSubscriber.[t]?subscriber ^-> ISubscription.[t]
+            ]
+
+    let HubConnection =
+        Class "signalR.HubConnection"
         |+> Instance [
-            "build"                 => T<unit> ^-> TSelf
+            "serverTimeoutInMilliseconds"   =@ T<Number>
+            "off"                           => T<string>?methodName ^-> T<unit>
+            "off"                           => T<string>?methodName * T<obj[] -> unit>?method ^-> T<unit>
+            "on"                            => T<string>?methodName * T<obj[] -> unit>?newMethod ^-> T<unit>
+            "onclose"                       => T<Error -> unit>?callback ^-> T<unit>
+            "send"                          => T<string>?methodName * (Type.ArrayOf T<obj>)?args ^-> T<Promise<unit>>
+            "start"                         => T<unit> ^-> T<Promise<unit>>
+            "stop"                          => T<unit> ^-> T<Promise<unit>>
+
+            Generic - fun t ->
+                "invoke"                    => T<string>?methodName * (Type.ArrayOf T<obj>)?args ^-> T<Promise<_>>.[t]
+
+            Generic - fun t ->
+                "stream"                    => T<string>?methodName * (Type.ArrayOf T<obj>)?args ^-> IStreamResult.[t]
+        ]
+
+    let HubConnectionBuilder =
+        Class "signalR.HubConnectionBuilder"
+        |+> Instance [
+            "build"                 => T<unit> ^-> HubConnection
             "configureLogging"      => LogLevel?logLevel ^-> TSelf
             "configureLogging"      => ILogger?logger ^-> TSelf
             "withHubProtocol"       => IHubProtocol?protocol ^-> TSelf
+            "withUrl"               => T<string>?url ^-> TSelf
             "withUrl"               => T<string>?url * IHttpConnectionOptions?options ^-> TSelf
         ]
         |+> Static [
@@ -200,7 +220,11 @@ module Definition =
                 ITransport
                 HttpClient
                 IHttpConnectionOptions
+                IStreamSubscriber
+                ISubscription
+                IStreamResult
 
+                HubConnection
                 HubConnectionBuilder
             ]
         ]
