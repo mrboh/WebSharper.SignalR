@@ -1,4 +1,4 @@
-﻿namespace WebSharper.SignalR.AssemblyInfo
+﻿namespace weatherwax.io.WebSharper.SignalR.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices
@@ -8,7 +8,7 @@ open System.Runtime.InteropServices
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [<assembly: AssemblyTitle("WebSharper.SignalR")>]
-[<assembly: AssemblyDescription("")>]
+[<assembly: AssemblyDescription("WebSharper bindings for SignalR")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]
 [<assembly: AssemblyProduct("WebSharper.SignalR")>]
