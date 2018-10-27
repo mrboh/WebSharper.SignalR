@@ -3,27 +3,38 @@ namespace weatherwax.io.WebSharper.SignalR
 open WebSharper
 open WebSharper.JavaScript
 open WebSharper.InterfaceGenerator
+open System.Net.Cache
 
 module Definition =
 
+    let numericEnum startIndex name strings =
+        let inlines =
+            strings
+            |> List.mapi (
+                fun i s ->
+                    (s, string <| i + startIndex)
+            )
+        Pattern.EnumInlines name inlines
+
     let LogLevel = 
-        Pattern.EnumStrings "LogLevel"
+        numericEnum 0 "signalR.LogLevel"
             [ "Trace"; "Debug"; "Information"; "Warning"; "Error"; "Critical"; "None" ]
 
+    // Unclear if this is correct
     let TransferFormat =
-        Pattern.EnumStrings "TransferFormat"
+        numericEnum 0 "signalR.TransferFormat"
             [ "Binary"; "Text" ]
 
     let MessageType =
-        Pattern.EnumStrings "MessageType"
+        numericEnum 1 "signalR.MessageType"
             [ "Invocation"; "StreamItem"; "Completion"; "StreamInvocation"; "CancelInvocation"; "Ping"; "Close" ]
 
     let HttpTransportType =
-        Pattern.EnumStrings "HttpTransportType"
+        numericEnum 0 "signalR.HttpTransportType"
             [ "None"; "WebSockets"; "ServerSentEvents"; "LongPolling" ]
 
     let HubMessageBase =
-        Interface "HubMessageBase"
+        Interface "signalR.HubMessageBase"
         |+> [
             "type" =@ MessageType
         ]
@@ -31,7 +42,7 @@ module Definition =
     let MessageHeaders = T<System.Collections.Generic.Dictionary<string,string>>
 
     let HubInvocationMessage =
-        Interface "HubInvocationMessage"
+        Interface "signalR.HubInvocationMessage"
         |=> Extends [ HubMessageBase ]
         |+> [
             "headers"       =@ MessageHeaders
@@ -39,7 +50,7 @@ module Definition =
         ]
 
     let InvocationMessage =
-        Interface "InvocationMessage"
+        Interface "signalR.InvocationMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "arguments" =@ Type.ArrayOf T<obj>
@@ -48,7 +59,7 @@ module Definition =
         ]
 
     let StreamInvocationMessage =
-        Interface "StreamInvocationMessage"
+        Interface "signalR.StreamInvocationMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "arguments"     =@ Type.ArrayOf T<obj>
@@ -58,7 +69,7 @@ module Definition =
         ]
 
     let StreamItemMessage =
-        Interface "StreamItemMessage"
+        Interface "signalR.StreamItemMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "invocationId"  =@ T<string>
@@ -67,7 +78,7 @@ module Definition =
         ]
 
     let CompletionMessage =
-        Interface "CompletionMessage"
+        Interface "signalR.CompletionMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "error"         =@ T<string>
@@ -77,7 +88,7 @@ module Definition =
         ]
 
     let CancelInvocationMessage =
-        Interface "CancelInvocationMessage"
+        Interface "signalR.CancelInvocationMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "invocationId"  =@ T<string>
@@ -85,14 +96,14 @@ module Definition =
         ]
 
     let PingMessage = 
-        Interface "PingMessage"
+        Interface "signalR.PingMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "type"  =@ T<obj>       // Type is 'Ping'?
         ]
 
     let CloseMessage =
-        Interface "CloseMessage"
+        Interface "signalR.CloseMessage"
         |=> Extends [ HubInvocationMessage ]
         |+> [
             "error" =@ T<string>
@@ -102,13 +113,13 @@ module Definition =
     let HubMessage = InvocationMessage + StreamInvocationMessage + StreamItemMessage + CompletionMessage + CancelInvocationMessage + PingMessage + CloseMessage
 
     let ILogger =
-        Interface "ILogger"
+        Interface "signalR.ILogger"
         |+> [
             "log"   => LogLevel?logLevel * T<string>?message ^-> T<unit>
         ]
 
     let IHubProtocol =
-        Interface "IHubProtocol"
+        Interface "signalR.IHubProtocol"
         |+> [
             "name"              =@ T<string>
             "transferFormat"    =@ TransferFormat
@@ -120,13 +131,63 @@ module Definition =
         ]
 
     let ITransport =
-        Interface "ITransport"
+        Interface "signalR.ITransport"
+        |+> [
+            "onclose"       =@ T<Error> ^-> T<unit>
+            "onreceive"     =@ T<string> + T<ArrayBuffer> ^-> T<unit>
+        ]
+        |+> [
+            "connect"       => T<string>?url * TransferFormat?transferFormat ^-> T<Promise<unit>>
+            "send"          => T<obj>?data ^-> T<Promise<unit>>
+            "stop"          => T<unit> ^-> T<Promise<unit>>
+        ]
+
+    let AbortSignal =
+        Interface "signalR.AbortSignal"
+        |+> [
+            "aborted"   =@ T<bool>
+            "onabort"   =@ T<unit -> unit>
+        ]
+
+    let HttpRequest =
+        Interface "signalR.HttpRequest"
+        |+> [
+            "abortSignal"       =@ AbortSignal
+            "content"           =@ T<string> + T<ArrayBuffer>
+            "headers"           =@ T<Function>
+            "method"            =@ T<string>
+            "responseType"      =@ T<XMLHttpRequestResponseType>
+            "timeout"           =@ T<Number>
+            "url"               =@ T<string>
+        ]
+
+    let HttpResponse =
+        Class "signalR.HttpResponse"
+        |+> Instance [
+            "content"       =@ T<string> + T<ArrayBuffer>
+            "statusCode"    =@ T<Number>
+            "statusText"    =@ T<string>
+        ]
+        |+> Static [
+            Constructor (T<Number>?statusCode)
+            Constructor (T<Number>?statusCode * T<string>?statusText)
+            Constructor (T<Number>?statusCode * T<string>?statusText * T<string>?content)
+            Constructor (T<Number>?statusCode * T<string>?statusText * T<ArrayBuffer>?content)
+        ]
 
     let HttpClient =
-        Class "HttpClient"
+        Class "signalR.HttpClient"
+        |+> Instance [
+            "delete"        => T<string>?url ^-> T<Promise<_>>.[HttpResponse]
+            "get"           => T<string>?url ^-> T<Promise<_>>.[HttpResponse]
+            "get"           => T<string>?url * HttpRequest?options ^-> T<Promise<_>>.[HttpResponse]
+            "post"          => T<string>?url ^-> T<Promise<_>>.[HttpResponse]
+            "post"          => T<string>?url * HttpRequest?options ^-> T<Promise<_>>.[HttpResponse]
+            "send"          => HttpRequest?request ^-> T<Promise<_>>.[HttpResponse]
+        ]
 
     let IHttpConnectionOptions =
-        Interface "IHttpConnectionOptions"
+        Interface "signalR.IHttpConnectionOptions"
         |+> [
             "httpClient"        =@ HttpClient
             "logger"            =@ ILogger + LogLevel
@@ -140,7 +201,7 @@ module Definition =
 
     let IStreamSubscriber =
         Generic - fun t ->
-            Interface "IStreamSubscriber"
+            Interface "signalR.IStreamSubscriber"
             |+> [
                 "closed"        =@ T<bool>
             ]
@@ -152,17 +213,47 @@ module Definition =
 
     let ISubscription =
         Generic - fun t ->
-            Interface "ISubscription"
+            Interface "signalR.ISubscription"
             |+> [
                 "dispose" => T<unit> ^-> T<unit>
             ]
 
     let IStreamResult  =
         Generic - fun t ->
-            Interface "IStreamResult"
+            Interface "signalR.IStreamResult"
             |+> [
                 "subscribe" => IStreamSubscriber.[t]?subscriber ^-> ISubscription.[t]
             ]
+
+    let HttpError =
+        Class "signalR.HttpError"
+        |=> Inherits T<Error>
+        |+> Instance [
+            "statusCode"    =@ T<Number>
+        ]
+        |+> Static [
+            Constructor (T<string>?errorMessage * T<Number>?statusCode)
+            "Error"         =@ T<obj>       // Type is documented as 'ErrorConstructor'?
+        ]
+
+    let TimeoutError =
+        Class "signalR.TimeoutError"
+        |=> Inherits T<Error>
+        |+> Instance []
+        |+> Static [
+            Constructor (T<string>?errorMessage)
+            "Error" =@ T<obj>       // Type is documented as 'ErrorConstructor'
+        ]
+        
+    let DefaultHttpClient =
+        Class "signalR.DefaultHttpClient"
+        |=> Inherits HttpClient
+        |+> Instance [
+            "send"      => HttpRequest?request ^-> T<Promise<_>>.[HttpResponse]
+        ]
+        |+> Static [
+            Constructor (ILogger?logger)
+        ]
 
     let HubConnection =
         Class "signalR.HubConnection"
@@ -197,9 +288,29 @@ module Definition =
             Constructor (T<unit>)
         ]
 
+    let JsonHubProtocol =
+        Class "signalR.JsonHubProtocol"
+        |+> Instance [
+            "name"              =@ T<string>
+            "transferFormat"    =@ TransferFormat
+            "version"           =@ T<Number>
+
+            "parseMessages"     => T<string>?input * ILogger?logger ^-> Type.ArrayOf HubMessage
+            "writeMessage"      => HubMessage?message ^-> T<string>
+        ]
+
+    let NullLogger =
+        Class "signalR.NullLogger"
+        |+> Instance [
+            "log"       => LogLevel?logLevel * T<string>?message ^-> T<unit>
+        ]
+        |+> Static [
+            "instance"  =@ ILogger
+        ]
+
     let Assembly =
         Assembly [
-            Namespace "WebSharper.SignalR" [
+            Namespace "weatherwax.io.WebSharper.SignalR" [
                 LogLevel
                 TransferFormat
                 MessageType
@@ -215,6 +326,7 @@ module Definition =
                 PingMessage
                 CloseMessage
 
+                AbortSignal
                 ILogger
                 IHubProtocol
                 ITransport
@@ -223,9 +335,16 @@ module Definition =
                 IStreamSubscriber
                 ISubscription
                 IStreamResult
+                HttpRequest
 
+                HttpError
+                TimeoutError
+                DefaultHttpClient
+                HttpResponse
                 HubConnection
                 HubConnectionBuilder
+                JsonHubProtocol
+                NullLogger
             ]
         ]
 

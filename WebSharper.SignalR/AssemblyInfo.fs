@@ -7,11 +7,11 @@ open System.Runtime.InteropServices
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[<assembly: AssemblyTitle("WebSharper.SignalR")>]
+[<assembly: AssemblyTitle("weatherwax.io.WebSharper.SignalR")>]
 [<assembly: AssemblyDescription("WebSharper bindings for SignalR")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]
-[<assembly: AssemblyProduct("WebSharper.SignalR")>]
+[<assembly: AssemblyProduct("weatherwax.io.WebSharper.SignalR")>]
 [<assembly: AssemblyCopyright("Copyright ©  2018")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
