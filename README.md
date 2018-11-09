@@ -65,3 +65,7 @@ module Client =
 ```
 
 To see a basic working example, look at the sample project.
+
+### Issues
+
+Likely many, has not been tested to a great extent. The biggest issue I am aware of is that, the way the API/bindings are structured, complex structures do not seem to translate across from client to server and vice versa. I'm not sure if this is a WebSharper issue, a SignalR issue or just the bindings being implemented poorly. My workaround has been to serialize the objects with WebSharper, send the string via SignalR, then deserialize on the receiving end, which has worked well.
