@@ -7,6 +7,7 @@ open System.Net.Cache
 
 module Definition =
 
+    // Take a list of strings and convert them into an enum with first value startIndex
     let numericEnum startIndex name strings =
         let inlines =
             strings
@@ -260,10 +261,14 @@ module Definition =
         |+> Instance [
             "serverTimeoutInMilliseconds"   =@ T<Number>
             "off"                           => T<string>?methodName ^-> T<unit>
-            "off"                           => T<string>?methodName * T<obj[] -> unit>?method ^-> T<unit>
-            "on"                            => T<string>?methodName * T<obj[] -> unit>?newMethod ^-> T<unit>
+            "off"                           => T<string>?methodName * (Type.ArrayOf T<obj> ^-> T<unit>)?method ^-> T<unit>
+            "on"                            => T<string>?methodName * (Type.ArrayOf T<obj> ^-> T<unit>)?newMethod ^-> T<unit>             
+            Generic - fun t ->
+                "on"                        => T<string>?methodName * (t ^-> T<unit>)?newMethod ^-> T<unit>
             "onclose"                       => T<Error -> unit>?callback ^-> T<unit>
             "send"                          => T<string>?methodName * (Type.ArrayOf T<obj>)?args ^-> T<Promise<unit>>
+            Generic - fun t ->
+                "send"                      => T<string>?methodName * t?arg ^-> T<Promise<unit>>
             "start"                         => T<unit> ^-> T<Promise<unit>>
             "stop"                          => T<unit> ^-> T<Promise<unit>>
 
@@ -345,6 +350,9 @@ module Definition =
                 HubConnectionBuilder
                 JsonHubProtocol
                 NullLogger
+
+                Resource "SignalR" "https://cdn.jsdelivr.net/npm/@aspnet/signalr@1.0.4/dist/browser/signalr.min.js"
+                |> AssemblyWide
             ]
         ]
 
